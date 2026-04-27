@@ -71,7 +71,7 @@ export default function MasterPanelPage({
           <div className="flex items-center gap-2 text-tg-hint text-[13px] mt-0.5">
             <span>Панель мастера</span>
             {master.booking_stopped && (
-              <span className="text-red-300">· запись приостановлена</span>
+              <span className="text-red-600">· запись приостановлена</span>
             )}
           </div>
         </div>
@@ -215,7 +215,7 @@ function BookingsTab({ masterId }: { masterId: number }) {
               {b.status === 'pending' && (
                 <button
                   onClick={() => act(b, 'confirmed')}
-                  className="text-green-300"
+                  className="text-green-600"
                 >
                   Подтвердить
                 </button>
@@ -223,7 +223,7 @@ function BookingsTab({ masterId }: { masterId: number }) {
               {(b.status === 'pending' || b.status === 'confirmed') && (
                 <button
                   onClick={() => act(b, 'cancelled')}
-                  className="text-red-300"
+                  className="text-red-600"
                 >
                   Отменить
                 </button>
@@ -399,7 +399,7 @@ function ServicesTab({ masterId }: { masterId: number }) {
               key={s.id}
               onClick={() => toggleService(s)}
               trailing={
-                <span className={on ? 'text-green-300' : 'text-tg-hint'}>
+                <span className={on ? 'text-green-600' : 'text-tg-hint'}>
                   {on ? '✓' : '+'}
                 </span>
               }
@@ -465,7 +465,7 @@ function ClientsTab({ masterId }: { masterId: number }) {
             <Row
               key={b.id}
               onClick={() => unblock(b.client_id)}
-              trailing={<span className="text-red-300">Разблокировать</span>}
+              trailing={<span className="text-red-600">Разблокировать</span>}
             >
               <div className="font-medium">Клиент #{b.client_id}</div>
               {b.reason && (

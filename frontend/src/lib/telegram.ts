@@ -54,32 +54,17 @@ declare global {
 
 export const tg = (): WebApp | undefined => window.Telegram?.WebApp;
 
-function applyTheme(): void {
-  const w = tg();
-  if (!w?.themeParams) return;
-  const root = document.documentElement;
-  const p = w.themeParams;
-  const set = (k: string, v: string | undefined) => {
-    if (v) root.style.setProperty(k, v);
-  };
-  set('--tg-bg', p.bg_color);
-  set('--tg-text', p.text_color);
-  set('--tg-hint', p.hint_color);
-  set('--tg-link', p.link_color);
-  set('--tg-button', p.button_color);
-  set('--tg-button-text', p.button_text_color);
-  set('--tg-secondary-bg', p.secondary_bg_color);
-  set('--tg-section-bg', p.section_bg_color);
-  set('--tg-separator', p.section_separator_color);
-}
+// We intentionally ignore Telegram's themeParams. The salon brand uses a
+// fixed warm-beige + rose palette (defined in index.css) and we want it
+// to look identical regardless of whether the user has light or dark
+// Telegram. We still call ready()/expand() so the WebApp shows
+// fullscreen, just without theme overrides.
 
 export function initTelegram(): void {
   const w = tg();
   if (!w) return;
   w.ready();
   w.expand();
-  applyTheme();
-  w.onEvent('themeChanged', applyTheme);
 }
 
 export function haptic(kind: 'success' | 'error' | 'warning'): void {
