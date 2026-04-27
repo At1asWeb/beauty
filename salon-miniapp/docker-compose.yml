@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: salon
+      POSTGRES_PASSWORD: salon
+      POSTGRES_DB: salon
+    ports:
+      - "5432:5432"
+    volumes:
+      - salon-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salon"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://salon:salon@db:5432/salon
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      ROOT_ADMIN_TG_ID: ${ROOT_ADMIN_TG_ID:-0}
+      SALON_NAME: ${SALON_NAME:-Салон красоты}
+      WEBAPP_PUBLIC_URL: ${WEBAPP_PUBLIC_URL:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,https://web.telegram.org}
+      DEV_MODE: ${DEV_MODE:-false}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:8080"
+
+volumes:
+  salon-db: {}
