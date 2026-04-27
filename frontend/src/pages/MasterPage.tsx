@@ -64,7 +64,7 @@ export default function MasterPage({ me: _me }: { me: Me }) {
             <p className="mt-3 text-[14px] text-tg-text">{master.bio}</p>
           )}
           {master.booking_stopped && (
-            <p className="mt-3 text-[13px] text-red-300">
+            <p className="mt-3 text-[13px] text-red-600">
               Запись временно приостановлена
               {master.booking_stopped_reason
                 ? `: ${master.booking_stopped_reason}`

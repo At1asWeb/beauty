@@ -3,18 +3,23 @@
 @tailwind utilities;
 
 :root {
-  /* Fallback palette; Telegram themeParams override these at runtime.
-     Values below match Telegram's default dark theme so the app looks
-     native even when opened outside Telegram. */
-  --tg-bg: #17212b;
-  --tg-text: #f5f5f5;
-  --tg-hint: #708499;
-  --tg-link: #6ab2f2;
-  --tg-button: #5288c1;
+  /* Custom warm beige + rose palette tuned for a beauty salon. We
+     deliberately do NOT inherit Telegram's user theme any longer — the
+     salon brand should look identical in light and dark Telegram. */
+  --tg-bg: #faf6f1;
+  --tg-text: #2b1f17;
+  --tg-hint: #8b7a6f;
+  --tg-link: #c47a8a;
+  --tg-button: #c47a8a;
   --tg-button-text: #ffffff;
-  --tg-secondary-bg: #232e3c;
-  --tg-section-bg: #1d2733;
-  --tg-separator: #2a3746;
+  --tg-secondary-bg: #f3ebe1;
+  --tg-section-bg: #ffffff;
+  --tg-separator: #ece3d6;
+
+  /* Brand accents used in gradients and highlights. */
+  --salon-accent: #c47a8a;
+  --salon-accent-soft: #f7e5e7;
+  --salon-gold: #c8a55b;
 }
 
 html,
@@ -26,7 +31,7 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -35,7 +40,7 @@ body {
 .stars {
   display: inline-flex;
   gap: 1px;
-  color: #f5b301;
+  color: var(--salon-gold);
   font-size: 14px;
   line-height: 1;
 }
@@ -45,4 +50,10 @@ input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
+}
+
+/* Soft shadow used on cards and floating panels. */
+.shadow-soft {
+  box-shadow: 0 1px 2px rgba(60, 28, 20, 0.04),
+    0 4px 16px rgba(60, 28, 20, 0.06);
 }

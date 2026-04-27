@@ -113,7 +113,7 @@ export default function BookingHistoryPage({ me: _me }: { me: Me }) {
                 {formatDateTime(b.start_at)} · {formatPrice(b.price_at_booking)}
               </div>
               {b.cancellation_reason && (
-                <div className="text-[12px] text-red-300 mt-1">
+                <div className="text-[12px] text-red-600 mt-1">
                   Причина отмены: {b.cancellation_reason}
                 </div>
               )}
@@ -121,7 +121,7 @@ export default function BookingHistoryPage({ me: _me }: { me: Me }) {
                 {cancellable(b) && (
                   <button
                     onClick={() => cancel(b)}
-                    className="text-[13px] text-red-300"
+                    className="text-[13px] text-red-600"
                   >
                     Отменить
                   </button>

@@ -141,7 +141,7 @@ function CategoriesTab() {
               trailing={
                 <button
                   onClick={() => remove(c.id)}
-                  className="text-red-300"
+                  className="text-red-600"
                 >
                   удалить
                 </button>
@@ -242,7 +242,7 @@ function ServicesTab() {
               trailing={
                 <button
                   onClick={() => remove(s.id)}
-                  className="text-red-300"
+                  className="text-red-600"
                 >
                   удалить
                 </button>
@@ -262,34 +262,64 @@ function ServicesTab() {
 
 function MastersTab() {
   const [masters, setMasters] = useState<Master[] | null>(null);
+  const [services, setServices] = useState<Service[] | null>(null);
   const [tgId, setTgId] = useState('');
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [pickedServiceIds, setPickedServiceIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [editingMasterId, setEditingMasterId] = useState<number | null>(null);
 
   const load = () => {
     api.listMasters().then(setMasters);
+    api.listServices().then(setServices);
   };
   useEffect(load, []);
+
+  const togglePicked = (id: number) => {
+    setPickedServiceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const add = () => {
     const numericId = Number(tgId);
     if (!numericId || !name.trim()) return;
-    handle(
-      api.createMaster({
+    api
+      .createMaster({
         tg_id: numericId,
         display_name: name,
         bio: bio || undefined,
+        photo_url: photoUrl || undefined,
         is_admin: isAdmin,
-      }),
-      () => {
+      })
+      .then(async (created) => {
+        // Link the master to all services the admin ticked. We do this
+        // sequentially because the list is small (a salon rarely has
+        // more than a handful of services per master) and Render free
+        // tier has limited concurrency.
+        for (const sid of pickedServiceIds) {
+          await api.addMasterService(created.id, { service_id: sid });
+        }
+        haptic('success');
         setTgId('');
         setName('');
         setBio('');
+        setPhotoUrl('');
         setIsAdmin(false);
+        setPickedServiceIds(new Set());
         load();
-      },
-    );
+      })
+      .catch((err) => {
+        const msg = err instanceof ApiError ? err.detail : String(err);
+        tg()?.showAlert(`Ошибка: ${msg}`);
+      });
   };
 
   const remove = (id: number) => {
@@ -301,7 +331,7 @@ function MastersTab() {
     <>
       <Section
         title="Добавить мастера"
-        footer="Введите Telegram ID пользователя — он появится в списке мастеров после того как откроет мини-приложение."
+        footer="Telegram ID мастера → имя → ссылка на фото (необязательно) → отметьте услуги, которые он выполняет."
       >
         <div className="p-3 space-y-2">
           <Input
@@ -315,6 +345,11 @@ function MastersTab() {
             onChange={setName}
             placeholder="Отображаемое имя"
           />
+          <Input
+            value={photoUrl}
+            onChange={setPhotoUrl}
+            placeholder="URL фотографии (https://…)"
+          />
           <TextArea value={bio} onChange={setBio} placeholder="О мастере" />
           <label className="flex items-center gap-2 text-[14px]">
             <input
@@ -324,9 +359,36 @@ function MastersTab() {
             />
             Назначить администратором
           </label>
+
+          {services && services.length > 0 && (
+            <div className="pt-2">
+              <div className="text-[13px] text-tg-hint mb-2">
+                Услуги мастера
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {services.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => togglePicked(s.id)}
+                    className={
+                      'px-3 py-1.5 rounded-full text-[13px] border transition-colors ' +
+                      (pickedServiceIds.has(s.id)
+                        ? 'bg-tg-button text-tg-buttonText border-tg-button'
+                        : 'bg-white text-tg-text border-tg-separator')
+                    }
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Button onClick={add}>Добавить</Button>
         </div>
       </Section>
+
       <Section title="Все мастера">
         {masters === null ? (
           <Spinner />
@@ -334,26 +396,125 @@ function MastersTab() {
           <EmptyState text="Мастеров нет" />
         ) : (
           masters.map((m) => (
-            <Row
-              key={m.id}
-              trailing={
-                <button
-                  onClick={() => remove(m.id)}
-                  className="text-red-300"
-                >
-                  удалить
-                </button>
-              }
-            >
-              <div className="font-medium">{m.display_name}</div>
-              <div className="text-tg-hint text-[12px]">
-                Рейтинг {m.rating_avg.toFixed(1)} · {m.rating_count} отзывов
+            <div key={m.id} className="border-b border-tg-separator last:border-0">
+              <div className="px-4 py-3 flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-tg-secondaryBg shrink-0">
+                  {m.photo_url ? (
+                    <img
+                      src={m.photo_url}
+                      alt={m.display_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[20px] text-tg-hint">
+                      ✂︎
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">{m.display_name}</div>
+                  <div className="text-tg-hint text-[12px]">
+                    Рейтинг {m.rating_avg.toFixed(1)} · {m.rating_count} отзывов
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    onClick={() =>
+                      setEditingMasterId(
+                        editingMasterId === m.id ? null : m.id,
+                      )
+                    }
+                    className="text-tg-link text-[13px]"
+                  >
+                    {editingMasterId === m.id ? 'свернуть' : 'услуги'}
+                  </button>
+                  <button
+                    onClick={() => remove(m.id)}
+                    className="text-red-600 text-[13px]"
+                  >
+                    удалить
+                  </button>
+                </div>
               </div>
-            </Row>
+              {editingMasterId === m.id && services && (
+                <MasterServicesEditor
+                  master={m}
+                  allServices={services}
+                  onChanged={load}
+                />
+              )}
+            </div>
           ))
         )}
       </Section>
     </>
+  );
+}
+
+function MasterServicesEditor({
+  master,
+  allServices,
+  onChanged,
+}: {
+  master: Master;
+  allServices: Service[];
+  onChanged: () => void;
+}) {
+  const [active, setActive] = useState<Set<number> | null>(null);
+
+  useEffect(() => {
+    api.listMasterServices(master.id).then((list) => {
+      setActive(new Set(list.map((s) => s.id)));
+    });
+  }, [master.id]);
+
+  if (active === null) return <Spinner />;
+
+  const toggle = async (sid: number) => {
+    const next = new Set(active);
+    try {
+      if (next.has(sid)) {
+        await api.removeMasterService(master.id, sid);
+        next.delete(sid);
+      } else {
+        await api.addMasterService(master.id, { service_id: sid });
+        next.add(sid);
+      }
+      setActive(next);
+      onChanged();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.detail : String(err);
+      tg()?.showAlert(`Ошибка: ${msg}`);
+    }
+  };
+
+  return (
+    <div className="px-4 pb-3">
+      <div className="text-[12px] text-tg-hint mb-2">
+        Нажмите, чтобы привязать или отвязать услугу.
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {allServices.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => toggle(s.id)}
+            className={
+              'px-3 py-1.5 rounded-full text-[13px] border transition-colors ' +
+              (active.has(s.id)
+                ? 'bg-tg-button text-tg-buttonText border-tg-button'
+                : 'bg-white text-tg-text border-tg-separator')
+            }
+          >
+            {s.name}
+          </button>
+        ))}
+      </div>
+      {allServices.length === 0 && (
+        <div className="text-[13px] text-tg-hint">
+          Сначала создайте услуги во вкладке «Услуги».
+        </div>
+      )}
+    </div>
   );
 }
 

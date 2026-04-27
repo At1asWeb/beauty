@@ -33,6 +33,7 @@ class MeOut(BaseModel):
     is_master: bool
     master_id: int | None
     salon_name: str
+    salon_banner_url: str
 
 
 class CategoryCreate(BaseModel):

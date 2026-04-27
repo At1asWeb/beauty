@@ -27,4 +27,5 @@ async def me(
         is_master=master is not None,
         master_id=master.id if master else None,
         salon_name=settings.salon_name,
+        salon_banner_url=settings.salon_banner_url,
     )

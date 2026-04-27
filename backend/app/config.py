@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     root_admin_tg_id: int = Field(default=0, alias="ROOT_ADMIN_TG_ID")
     salon_name: str = Field(default="Салон красоты", alias="SALON_NAME")
+    salon_banner_url: str = Field(
+        default=(
+            "https://images.unsplash.com/photo-1560066984-138dadb4c035"
+            "?auto=format&fit=crop&w=1200&q=80"
+        ),
+        alias="SALON_BANNER_URL",
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://salon:salon@localhost:5432/salon",
         alias="DATABASE_URL",

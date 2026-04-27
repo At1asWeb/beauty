@@ -22,6 +22,7 @@ export type Me = {
   is_master: boolean;
   master_id: number | null;
   salon_name: string;
+  salon_banner_url: string;
 };
 
 export type Category = {

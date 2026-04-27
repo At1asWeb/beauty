@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { EmptyState, Row, Section, Spinner, Stars } from '../components/Ui';
+import { EmptyState, Section, Spinner, Stars } from '../components/Ui';
 import {
   type Category,
   type GalleryItem,
@@ -23,70 +23,109 @@ export default function HomePage({ me }: { me: Me }) {
   }, []);
 
   return (
-    <div className="pt-3">
-      <header className="px-4 mb-4">
-        <div className="bg-gradient-to-br from-tg-button/30 to-tg-sectionBg rounded-2xl p-5">
-          <h1 className="text-xl font-semibold leading-tight">
+    <div className="pb-4">
+      {/* ---- Hero banner with the salon photo ---- */}
+      <header className="relative">
+        <div className="aspect-[16/9] overflow-hidden">
+          <img
+            src={me.salon_banner_url}
+            alt={me.salon_name}
+            className="w-full h-full object-cover"
+            loading="eager"
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(43,31,23,0) 40%, rgba(43,31,23,0.55) 100%)',
+            }}
+          />
+        </div>
+        <div className="absolute bottom-0 inset-x-0 px-4 pb-4 text-white">
+          <h1 className="text-[22px] font-semibold leading-tight drop-shadow">
             {me.salon_name}
           </h1>
-          <p className="text-tg-hint text-[13px] mt-1">
-            Запись в салон 24/7. Выберите услугу и мастера.
+          <p className="text-[13px] opacity-90 mt-0.5 drop-shadow">
+            Запись 24/7. Выберите услугу и мастера.
           </p>
         </div>
       </header>
 
-      <Section title="Категории услуг">
+      {/* ---- Услуги (категории) ---- */}
+      <Section title="Услуги">
         {categories === null ? (
           <Spinner />
         ) : categories.length === 0 ? (
           <EmptyState text="Категории ещё не заведены" />
         ) : (
-          categories.map((c) => (
-            <Row
-              key={c.id}
-              onClick={() => nav(`/category/${c.id}`)}
-              trailing={<span>›</span>}
-            >
-              <div className="font-medium">
-                {c.icon ? `${c.icon} ` : ''}
-                {c.name}
-              </div>
-              {c.description && (
-                <div className="text-tg-hint text-[13px] mt-0.5">
-                  {c.description}
-                </div>
-              )}
-            </Row>
-          ))
+          <div className="p-3 grid grid-cols-2 gap-3">
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => nav(`/category/${c.id}`)}
+                className="text-left bg-white rounded-2xl p-4 shadow-soft active:scale-[0.98] transition-transform"
+              >
+                <div className="text-2xl">{c.icon ?? '✨'}</div>
+                <div className="font-medium mt-2 text-[15px]">{c.name}</div>
+                {c.description && (
+                  <div className="text-tg-hint text-[12px] mt-1 line-clamp-2">
+                    {c.description}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         )}
       </Section>
 
+      {/* ---- Наши мастера ---- */}
       <Section title="Наши мастера">
         {masters === null ? (
           <Spinner />
         ) : masters.length === 0 ? (
           <EmptyState text="Мастера скоро появятся" />
         ) : (
-          masters.map((m) => (
-            <Row
-              key={m.id}
-              onClick={() => nav(`/master/${m.id}`)}
-              trailing={<span>›</span>}
-            >
-              <div className="font-medium">{m.display_name}</div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Stars rating={m.rating_avg} count={m.rating_count} />
-                {m.booking_stopped && (
-                  <span className="text-[11px] text-red-400">
-                    запись приостановлена
-                  </span>
-                )}
-              </div>
-            </Row>
-          ))
+          <div className="px-3 pb-2 flex gap-3 overflow-x-auto -mx-1">
+            {masters.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => nav(`/master/${m.id}`)}
+                className="shrink-0 w-[150px] bg-white rounded-2xl shadow-soft overflow-hidden text-left active:scale-[0.98] transition-transform"
+              >
+                <div className="aspect-square bg-tg-secondaryBg overflow-hidden">
+                  {m.photo_url ? (
+                    <img
+                      src={m.photo_url}
+                      alt={m.display_name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[42px] text-tg-hint">
+                      ✂︎
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <div className="font-medium text-[14px] line-clamp-1">
+                    {m.display_name}
+                  </div>
+                  <div className="mt-1">
+                    <Stars rating={m.rating_avg} count={m.rating_count} />
+                  </div>
+                  {m.booking_stopped && (
+                    <div className="text-[11px] text-red-500 mt-1">
+                      запись приостановлена
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </Section>
 
+      {/* ---- Галерея работ ---- */}
       <Section title="Галерея работ">
         {gallery === null ? (
           <Spinner />
@@ -97,7 +136,7 @@ export default function HomePage({ me }: { me: Me }) {
             {gallery.map((g) => (
               <div
                 key={g.id}
-                className="aspect-square rounded-lg overflow-hidden bg-tg-secondaryBg"
+                className="aspect-square rounded-xl overflow-hidden bg-tg-secondaryBg shadow-soft"
               >
                 <img
                   src={g.image_url}

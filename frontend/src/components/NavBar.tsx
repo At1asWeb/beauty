@@ -32,7 +32,7 @@ export function NavBar({ me }: { me: Me }) {
   const isAdmin = me.user.role === 'admin';
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 bg-tg-secondaryBg border-t border-tg-separator flex"
+      className="fixed bottom-0 inset-x-0 bg-white border-t border-tg-separator flex shadow-soft"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Tab to="/" label="Главная" icon="🏠" />

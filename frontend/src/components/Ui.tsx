@@ -17,7 +17,7 @@ export function Section({
           {title}
         </h2>
       )}
-      <div className="bg-tg-sectionBg rounded-xl mx-3 overflow-hidden divide-y divide-tg-separator">
+      <div className="bg-tg-sectionBg rounded-2xl mx-3 overflow-hidden divide-y divide-tg-separator shadow-soft">
         {children}
       </div>
       {footer && (
@@ -79,7 +79,7 @@ export function Button({
     'w-full rounded-xl py-3 font-medium text-[15px] disabled:opacity-50 transition-opacity';
   const cls =
     kind === 'primary'
-      ? 'bg-tg-button text-tg-buttonText'
+      ? 'bg-tg-button text-tg-buttonText shadow-soft'
       : kind === 'danger'
       ? 'bg-red-500/90 text-white'
       : 'bg-tg-secondaryBg text-tg-text';
@@ -172,13 +172,13 @@ export function Spinner({ label }: { label?: string }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { t: string; c: string }> = {
-    pending: { t: 'Ожидает', c: 'bg-yellow-500/20 text-yellow-300' },
-    confirmed: { t: 'Подтверждена', c: 'bg-green-500/20 text-green-300' },
-    completed: { t: 'Завершена', c: 'bg-blue-500/20 text-blue-300' },
-    cancelled: { t: 'Отменена', c: 'bg-red-500/20 text-red-300' },
-    no_show: { t: 'Не пришёл', c: 'bg-gray-500/20 text-gray-300' },
+    pending: { t: 'Ожидает', c: 'bg-yellow-100 text-yellow-700' },
+    confirmed: { t: 'Подтверждена', c: 'bg-green-100 text-green-700' },
+    completed: { t: 'Завершена', c: 'bg-blue-100 text-blue-700' },
+    cancelled: { t: 'Отменена', c: 'bg-red-100 text-red-700' },
+    no_show: { t: 'Не пришёл', c: 'bg-gray-200 text-gray-700' },
   };
-  const s = map[status] ?? { t: status, c: 'bg-gray-500/20 text-gray-300' };
+  const s = map[status] ?? { t: status, c: 'bg-gray-200 text-gray-700' };
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] ${s.c}`}>
       {s.t}
