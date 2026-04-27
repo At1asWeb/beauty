@@ -1,0 +1,35 @@
+server {
+  listen       ${PORT};
+  server_name  _;
+  root         /usr/share/nginx/html;
+  index        index.html;
+
+  # SPA fallback: every unknown route serves index.html so react-router
+  # can handle it client-side.
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  # Under docker-compose the frontend reverse-proxies /api/* to the
+  # `backend` service on the internal docker network. In production
+  # (Render/Railway/Fly) the bundle is built with
+  # VITE_API_BASE=https://<backend-url>, so the browser talks to the
+  # backend directly and these proxy blocks go unused.
+  #
+  # We use a variable + resolver so nginx does NOT try to resolve the
+  # `backend` hostname at startup — if the hostname doesn't exist (i.e.
+  # the frontend image is deployed standalone), nginx still boots; the
+  # /api/* routes simply return 502 when accessed.
+  resolver 127.0.0.11 valid=30s ipv6=off;
+  set $backend_upstream "backend:8000";
+  location /api/ {
+    proxy_pass http://$backend_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_connect_timeout 5s;
+  }
+  location /healthz {
+    proxy_pass http://$backend_upstream;
+    proxy_connect_timeout 5s;
+  }
+}

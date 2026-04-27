@@ -1,0 +1,44 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Render has a free tier that does NOT require a credit card. Free web
+# services sleep after ~15 minutes of inactivity and cold-start in
+# 30-60 seconds — that's fine for a small salon app.
+#
+# We do NOT declare a Postgres service here because Render's free
+# Postgres deletes itself after 90 days. Use Neon (https://neon.tech)
+# instead — they keep their free tier forever. Copy the Neon connection
+# string into the BACKEND service's DATABASE_URL variable after first
+# deploy.
+
+services:
+  - type: web
+    name: salon-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        sync: false   # Set in Render dashboard after creating Neon DB.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ROOT_ADMIN_TG_ID
+        sync: false
+      - key: SALON_NAME
+        value: Салон красоты
+      - key: CORS_ORIGINS
+        sync: false   # Set to your frontend URL, once it's deployed.
+
+  - type: web
+    name: salon-frontend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: VITE_API_BASE
+        sync: false   # Set to https://salon-backend-<hash>.onrender.com

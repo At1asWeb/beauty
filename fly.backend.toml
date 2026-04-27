@@ -1,0 +1,32 @@
+# Fly.io backend app config. Deploy with:
+#   flyctl launch --no-deploy --copy-config --name <your-api-name>
+#   flyctl postgres create --name <your-api-name>-db
+#   flyctl postgres attach --app <your-api-name> <your-api-name>-db
+#   flyctl secrets set -a <your-api-name> TELEGRAM_BOT_TOKEN=... ROOT_ADMIN_TG_ID=... SALON_NAME=...
+#   flyctl deploy -c fly.backend.toml -a <your-api-name>
+
+app = "salon-miniapp-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "15s"
+  method = "get"
+  path = "/healthz"
+  timeout = "5s"
+
+[deploy]
+  release_command = "alembic upgrade head"
