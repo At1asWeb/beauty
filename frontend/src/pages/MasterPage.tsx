@@ -50,7 +50,7 @@ export default function MasterPage({ me: _me }: { me: Me }) {
           <div className="flex items-center gap-3">
             {master.photo_url && (
               <img
-                src={master.photo_url}
+                src={api.resolveAsset(master.photo_url)}
                 alt={master.display_name}
                 className="w-16 h-16 rounded-full object-cover"
               />
@@ -113,7 +113,7 @@ export default function MasterPage({ me: _me }: { me: Me }) {
                 className="aspect-square rounded-lg overflow-hidden bg-tg-secondaryBg"
               >
                 <img
-                  src={g.image_url}
+                  src={api.resolveAsset(g.image_url)}
                   alt={g.caption ?? ''}
                   className="w-full h-full object-cover"
                   loading="lazy"

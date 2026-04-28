@@ -1,6 +1,11 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 
-/** Reusable section wrapper that matches Telegram's UI grouping. */
+/** Reusable section wrapper that matches Telegram's UI grouping.
+ *
+ * Headers are intentionally larger than Telegram's default — the salon
+ * brand wants them to read as proper section dividers, not the tiny
+ * uppercase captions Telegram uses.
+ */
 export function Section({
   title,
   children,
@@ -11,9 +16,9 @@ export function Section({
   footer?: ReactNode;
 }) {
   return (
-    <section className="mb-5">
+    <section className="mb-6">
       {title && (
-        <h2 className="text-[13px] uppercase text-tg-hint px-4 mb-1 tracking-wide">
+        <h2 className="text-[20px] font-semibold text-tg-text px-4 mt-4 mb-2 leading-snug">
           {title}
         </h2>
       )}
@@ -21,7 +26,7 @@ export function Section({
         {children}
       </div>
       {footer && (
-        <p className="text-[12px] text-tg-hint px-4 mt-1">{footer}</p>
+        <p className="text-[12px] text-tg-hint px-4 mt-2">{footer}</p>
       )}
     </section>
   );

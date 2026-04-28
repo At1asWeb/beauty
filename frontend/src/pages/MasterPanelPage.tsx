@@ -364,53 +364,29 @@ function ScheduleTab({ masterId }: { masterId: number }) {
 
 function ServicesTab({ masterId }: { masterId: number }) {
   const [mine, setMine] = useState<Service[] | null>(null);
-  const [all, setAll] = useState<Service[] | null>(null);
 
-  const load = () => {
+  useEffect(() => {
     api.listMasterServices(masterId).then(setMine);
-    api.listServices().then(setAll);
-  };
-  useEffect(load, [masterId]);
+  }, [masterId]);
 
-  const toggleService = async (s: Service) => {
-    const already = mine?.some((m) => m.id === s.id);
-    try {
-      if (already) await api.removeMasterService(masterId, s.id);
-      else await api.addMasterService(masterId, { service_id: s.id });
-      haptic('success');
-      load();
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : String(err);
-      tg()?.showAlert(`Ошибка: ${msg}`);
-    }
-  };
-
-  if (mine === null || all === null) return <Spinner />;
+  if (mine === null) return <Spinner />;
 
   return (
-    <Section title="Какие услуги оказываю">
-      {all.length === 0 ? (
-        <EmptyState text="Администратор ещё не завёл услуг" />
+    <Section
+      title="Какие услуги оказываю"
+      footer="Привязка к категориям меняется администратором — мастер выполняет все услуги в назначенных ему категориях."
+    >
+      {mine.length === 0 ? (
+        <EmptyState text="Категории пока не назначены администратором" />
       ) : (
-        all.map((s) => {
-          const on = mine.some((m) => m.id === s.id);
-          return (
-            <Row
-              key={s.id}
-              onClick={() => toggleService(s)}
-              trailing={
-                <span className={on ? 'text-green-600' : 'text-tg-hint'}>
-                  {on ? '✓' : '+'}
-                </span>
-              }
-            >
-              <div className="font-medium">{s.name}</div>
-              <div className="text-tg-hint text-[12px]">
-                {formatPrice(s.price)} · {s.duration_min} мин
-              </div>
-            </Row>
-          );
-        })
+        mine.map((s) => (
+          <Row key={s.id}>
+            <div className="font-medium">{s.name}</div>
+            <div className="text-tg-hint text-[12px]">
+              {formatPrice(s.price)} · {s.duration_min} мин
+            </div>
+          </Row>
+        ))
       )}
     </Section>
   );

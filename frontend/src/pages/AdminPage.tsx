@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { ImagePicker } from '../components/ImagePicker';
 import {
   Button,
   EmptyState,
@@ -87,6 +88,8 @@ function CategoriesTab() {
   const [cats, setCats] = useState<Category[] | null>(null);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const load = () => {
     api.listCategories().then(setCats);
@@ -98,10 +101,16 @@ function CategoriesTab() {
   const add = () => {
     if (!name.trim()) return;
     handle(
-      api.createCategory({ name, icon: icon || null, sort_order: 0 }),
+      api.createCategory({
+        name,
+        icon: icon || null,
+        photo_url: photoUrl || null,
+        sort_order: 0,
+      }),
       () => {
         setName('');
         setIcon('');
+        setPhotoUrl('');
         load();
       },
     );
@@ -115,7 +124,7 @@ function CategoriesTab() {
   return (
     <>
       <Section title="Новая категория">
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-3">
           <Input
             value={name}
             onChange={setName}
@@ -126,6 +135,14 @@ function CategoriesTab() {
             onChange={setIcon}
             placeholder="Эмодзи-иконка (необязательно)"
           />
+          <div>
+            <div className="text-[13px] text-tg-hint mb-2">Фото категории</div>
+            <ImagePicker
+              value={photoUrl}
+              onChange={setPhotoUrl}
+              hint="Можно вставить URL или загрузить фото с устройства."
+            />
+          </div>
           <Button onClick={add}>Добавить</Button>
         </div>
       </Section>
@@ -136,26 +153,91 @@ function CategoriesTab() {
           <EmptyState text="Пока нет категорий" />
         ) : (
           cats.map((c) => (
-            <Row
+            <div
               key={c.id}
-              trailing={
-                <button
-                  onClick={() => remove(c.id)}
-                  className="text-red-600"
-                >
-                  удалить
-                </button>
-              }
+              className="border-b border-tg-separator last:border-0"
             >
-              <div className="font-medium">
-                {c.icon ? `${c.icon} ` : ''}
-                {c.name}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-tg-secondaryBg shrink-0">
+                  {c.photo_url ? (
+                    <img
+                      src={api.resolveAsset(c.photo_url)}
+                      alt={c.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[20px] text-tg-hint">
+                      {c.icon ?? '✨'}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">
+                    {c.icon ? `${c.icon} ` : ''}
+                    {c.name}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    onClick={() =>
+                      setEditingId(editingId === c.id ? null : c.id)
+                    }
+                    className="text-tg-link text-[13px]"
+                  >
+                    {editingId === c.id ? 'свернуть' : 'фото'}
+                  </button>
+                  <button
+                    onClick={() => remove(c.id)}
+                    className="text-red-600 text-[13px]"
+                  >
+                    удалить
+                  </button>
+                </div>
               </div>
-            </Row>
+              {editingId === c.id && (
+                <CategoryPhotoEditor category={c} onChanged={load} />
+              )}
+            </div>
           ))
         )}
       </Section>
     </>
+  );
+}
+
+function CategoryPhotoEditor({
+  category,
+  onChanged,
+}: {
+  category: Category;
+  onChanged: () => void;
+}) {
+  const [value, setValue] = useState(category.photo_url ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateCategory(category.id, {
+        photo_url: value || null,
+      });
+      haptic('success');
+      onChanged();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.detail : String(err);
+      tg()?.showAlert(`Ошибка: ${msg}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="px-4 pb-3 space-y-2">
+      <ImagePicker value={value} onChange={setValue} />
+      <Button onClick={save} disabled={saving}>
+        {saving ? 'Сохраняем…' : 'Сохранить фото'}
+      </Button>
+    </div>
   );
 }
 
@@ -262,25 +344,25 @@ function ServicesTab() {
 
 function MastersTab() {
   const [masters, setMasters] = useState<Master[] | null>(null);
-  const [services, setServices] = useState<Service[] | null>(null);
+  const [categories, setCategories] = useState<Category[] | null>(null);
   const [tgId, setTgId] = useState('');
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [pickedServiceIds, setPickedServiceIds] = useState<Set<number>>(
+  const [pickedCategoryIds, setPickedCategoryIds] = useState<Set<number>>(
     new Set(),
   );
   const [editingMasterId, setEditingMasterId] = useState<number | null>(null);
 
   const load = () => {
     api.listMasters().then(setMasters);
-    api.listServices().then(setServices);
+    api.listCategories().then(setCategories);
   };
   useEffect(load, []);
 
   const togglePicked = (id: number) => {
-    setPickedServiceIds((prev) => {
+    setPickedCategoryIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -300,12 +382,10 @@ function MastersTab() {
         is_admin: isAdmin,
       })
       .then(async (created) => {
-        // Link the master to all services the admin ticked. We do this
-        // sequentially because the list is small (a salon rarely has
-        // more than a handful of services per master) and Render free
-        // tier has limited concurrency.
-        for (const sid of pickedServiceIds) {
-          await api.addMasterService(created.id, { service_id: sid });
+        // Link the master to each picked category. Master then implicitly
+        // performs every active service inside those categories.
+        for (const cid of pickedCategoryIds) {
+          await api.addMasterCategory(created.id, cid);
         }
         haptic('success');
         setTgId('');
@@ -313,7 +393,7 @@ function MastersTab() {
         setBio('');
         setPhotoUrl('');
         setIsAdmin(false);
-        setPickedServiceIds(new Set());
+        setPickedCategoryIds(new Set());
         load();
       })
       .catch((err) => {
@@ -331,9 +411,9 @@ function MastersTab() {
     <>
       <Section
         title="Добавить мастера"
-        footer="Telegram ID мастера → имя → ссылка на фото (необязательно) → отметьте услуги, которые он выполняет."
+        footer="Telegram ID мастера → имя → фото → отметьте категории. Мастер автоматически будет выполнять все услуги в выбранных категориях."
       >
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-3">
           <Input
             type="number"
             value={tgId}
@@ -345,11 +425,10 @@ function MastersTab() {
             onChange={setName}
             placeholder="Отображаемое имя"
           />
-          <Input
-            value={photoUrl}
-            onChange={setPhotoUrl}
-            placeholder="URL фотографии (https://…)"
-          />
+          <div>
+            <div className="text-[13px] text-tg-hint mb-2">Фото мастера</div>
+            <ImagePicker value={photoUrl} onChange={setPhotoUrl} />
+          </div>
           <TextArea value={bio} onChange={setBio} placeholder="О мастере" />
           <label className="flex items-center gap-2 text-[14px]">
             <input
@@ -360,25 +439,26 @@ function MastersTab() {
             Назначить администратором
           </label>
 
-          {services && services.length > 0 && (
+          {categories && categories.length > 0 && (
             <div className="pt-2">
               <div className="text-[13px] text-tg-hint mb-2">
-                Услуги мастера
+                Категории мастера
               </div>
               <div className="flex flex-wrap gap-2">
-                {services.map((s) => (
+                {categories.map((c) => (
                   <button
-                    key={s.id}
+                    key={c.id}
                     type="button"
-                    onClick={() => togglePicked(s.id)}
+                    onClick={() => togglePicked(c.id)}
                     className={
                       'px-3 py-1.5 rounded-full text-[13px] border transition-colors ' +
-                      (pickedServiceIds.has(s.id)
+                      (pickedCategoryIds.has(c.id)
                         ? 'bg-tg-button text-tg-buttonText border-tg-button'
                         : 'bg-white text-tg-text border-tg-separator')
                     }
                   >
-                    {s.name}
+                    {c.icon ? `${c.icon} ` : ''}
+                    {c.name}
                   </button>
                 ))}
               </div>
@@ -401,7 +481,7 @@ function MastersTab() {
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-tg-secondaryBg shrink-0">
                   {m.photo_url ? (
                     <img
-                      src={m.photo_url}
+                      src={api.resolveAsset(m.photo_url)}
                       alt={m.display_name}
                       className="w-full h-full object-cover"
                     />
@@ -426,7 +506,7 @@ function MastersTab() {
                     }
                     className="text-tg-link text-[13px]"
                   >
-                    {editingMasterId === m.id ? 'свернуть' : 'услуги'}
+                    {editingMasterId === m.id ? 'свернуть' : 'категории'}
                   </button>
                   <button
                     onClick={() => remove(m.id)}
@@ -436,10 +516,10 @@ function MastersTab() {
                   </button>
                 </div>
               </div>
-              {editingMasterId === m.id && services && (
-                <MasterServicesEditor
+              {editingMasterId === m.id && categories && (
+                <MasterCategoriesEditor
                   master={m}
-                  allServices={services}
+                  allCategories={categories}
                   onChanged={load}
                 />
               )}
@@ -451,34 +531,34 @@ function MastersTab() {
   );
 }
 
-function MasterServicesEditor({
+function MasterCategoriesEditor({
   master,
-  allServices,
+  allCategories,
   onChanged,
 }: {
   master: Master;
-  allServices: Service[];
+  allCategories: Category[];
   onChanged: () => void;
 }) {
   const [active, setActive] = useState<Set<number> | null>(null);
 
   useEffect(() => {
-    api.listMasterServices(master.id).then((list) => {
-      setActive(new Set(list.map((s) => s.id)));
+    api.listMasterCategories(master.id).then((list) => {
+      setActive(new Set(list.map((c) => c.id)));
     });
   }, [master.id]);
 
   if (active === null) return <Spinner />;
 
-  const toggle = async (sid: number) => {
+  const toggle = async (cid: number) => {
     const next = new Set(active);
     try {
-      if (next.has(sid)) {
-        await api.removeMasterService(master.id, sid);
-        next.delete(sid);
+      if (next.has(cid)) {
+        await api.removeMasterCategory(master.id, cid);
+        next.delete(cid);
       } else {
-        await api.addMasterService(master.id, { service_id: sid });
-        next.add(sid);
+        await api.addMasterCategory(master.id, cid);
+        next.add(cid);
       }
       setActive(next);
       onChanged();
@@ -491,27 +571,29 @@ function MasterServicesEditor({
   return (
     <div className="px-4 pb-3">
       <div className="text-[12px] text-tg-hint mb-2">
-        Нажмите, чтобы привязать или отвязать услугу.
+        Нажмите, чтобы привязать или отвязать категорию. Мастер будет
+        выполнять все услуги в отмеченных категориях.
       </div>
       <div className="flex flex-wrap gap-2">
-        {allServices.map((s) => (
+        {allCategories.map((c) => (
           <button
-            key={s.id}
-            onClick={() => toggle(s.id)}
+            key={c.id}
+            onClick={() => toggle(c.id)}
             className={
               'px-3 py-1.5 rounded-full text-[13px] border transition-colors ' +
-              (active.has(s.id)
+              (active.has(c.id)
                 ? 'bg-tg-button text-tg-buttonText border-tg-button'
                 : 'bg-white text-tg-text border-tg-separator')
             }
           >
-            {s.name}
+            {c.icon ? `${c.icon} ` : ''}
+            {c.name}
           </button>
         ))}
       </div>
-      {allServices.length === 0 && (
+      {allCategories.length === 0 && (
         <div className="text-[13px] text-tg-hint">
-          Сначала создайте услуги во вкладке «Услуги».
+          Сначала создайте категории во вкладке «Категории».
         </div>
       )}
     </div>
@@ -551,11 +633,11 @@ function GalleryTab() {
   return (
     <>
       <Section title="Добавить в галерею">
-        <div className="p-3 space-y-2">
-          <Input
+        <div className="p-3 space-y-3">
+          <ImagePicker
             value={url}
             onChange={setUrl}
-            placeholder="URL изображения (https://…)"
+            hint="Можно вставить URL или загрузить фото с устройства."
           />
           <Input
             value={caption}
@@ -576,7 +658,7 @@ function GalleryTab() {
               <div key={g.id} className="relative">
                 <div className="aspect-square rounded-lg overflow-hidden bg-tg-secondaryBg">
                   <img
-                    src={g.image_url}
+                    src={api.resolveAsset(g.image_url)}
                     alt={g.caption ?? ''}
                     className="w-full h-full object-cover"
                   />

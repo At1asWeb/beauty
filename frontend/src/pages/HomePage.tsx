@@ -28,7 +28,7 @@ export default function HomePage({ me }: { me: Me }) {
       <header className="relative">
         <div className="aspect-[16/9] overflow-hidden">
           <img
-            src={me.salon_banner_url}
+            src={api.resolveAsset(me.salon_banner_url)}
             alt={me.salon_name}
             className="w-full h-full object-cover"
             loading="eager"
@@ -63,15 +63,33 @@ export default function HomePage({ me }: { me: Me }) {
               <button
                 key={c.id}
                 onClick={() => nav(`/category/${c.id}`)}
-                className="text-left bg-white rounded-2xl p-4 shadow-soft active:scale-[0.98] transition-transform"
+                className="text-left bg-white rounded-2xl shadow-soft overflow-hidden active:scale-[0.98] transition-transform"
               >
-                <div className="text-2xl">{c.icon ?? '✨'}</div>
-                <div className="font-medium mt-2 text-[15px]">{c.name}</div>
-                {c.description && (
-                  <div className="text-tg-hint text-[12px] mt-1 line-clamp-2">
-                    {c.description}
+                <div className="aspect-[4/3] bg-tg-secondaryBg overflow-hidden">
+                  {c.photo_url ? (
+                    <img
+                      src={api.resolveAsset(c.photo_url)}
+                      alt={c.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[34px] text-tg-hint">
+                      {c.icon ?? '✨'}
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <div className="font-medium text-[15px] line-clamp-1">
+                    {c.icon ? `${c.icon} ` : ''}
+                    {c.name}
                   </div>
-                )}
+                  {c.description && (
+                    <div className="text-tg-hint text-[12px] mt-1 line-clamp-2">
+                      {c.description}
+                    </div>
+                  )}
+                </div>
               </button>
             ))}
           </div>
@@ -95,7 +113,7 @@ export default function HomePage({ me }: { me: Me }) {
                 <div className="aspect-square bg-tg-secondaryBg overflow-hidden">
                   {m.photo_url ? (
                     <img
-                      src={m.photo_url}
+                      src={api.resolveAsset(m.photo_url)}
                       alt={m.display_name}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -139,7 +157,7 @@ export default function HomePage({ me }: { me: Me }) {
                 className="aspect-square rounded-xl overflow-hidden bg-tg-secondaryBg shadow-soft"
               >
                 <img
-                  src={g.image_url}
+                  src={api.resolveAsset(g.image_url)}
                   alt={g.caption ?? ''}
                   className="w-full h-full object-cover"
                   loading="lazy"

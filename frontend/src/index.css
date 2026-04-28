@@ -25,9 +25,25 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* Stretch to the full viewport so Telegram Desktop (which often
+     sizes the embedded WebApp at the natural window width) doesn't
+     leave a white strip beside the content. */
+  width: 100%;
+  min-height: 100%;
   background: var(--tg-bg);
   color: var(--tg-text);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
 }
 
 body {

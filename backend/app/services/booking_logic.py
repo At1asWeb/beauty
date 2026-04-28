@@ -11,6 +11,7 @@ from ..models import (
     BookingStatus,
     ClientBlock,
     Master,
+    MasterCategory,
     MasterService,
     Schedule,
     Service,
@@ -33,31 +34,47 @@ async def get_effective_service(
 ) -> tuple[Service, float, int] | None:
     """Resolve the price/duration to use for a given master+service.
 
+    A master is assigned to whole categories (`master_categories`) and
+    implicitly performs every active service inside each linked
+    category. We additionally honour any per-service override left over
+    in `master_services` if one exists, but the assignment itself comes
+    from the category mapping.
+
     Returns (service, price, duration_minutes) or None if this master
     doesn't perform that service.
     """
 
     q = (
-        select(Service, MasterService)
+        select(Service)
         .join(
-            MasterService,
+            MasterCategory,
             and_(
-                MasterService.service_id == Service.id,
-                MasterService.master_id == master_id,
+                MasterCategory.category_id == Service.category_id,
+                MasterCategory.master_id == master_id,
             ),
         )
         .where(Service.id == service_id, Service.is_active.is_(True))
     )
-    row = (await session.execute(q)).first()
-    if row is None:
+    service = (await session.execute(q)).scalars().first()
+    if service is None:
         return None
-    service, ms = row
+
+    override = (
+        await session.execute(
+            select(MasterService).where(
+                MasterService.master_id == master_id,
+                MasterService.service_id == service_id,
+            )
+        )
+    ).scalar_one_or_none()
     price = float(
-        ms.price_override if ms.price_override is not None else service.price
+        override.price_override
+        if override and override.price_override is not None
+        else service.price
     )
     duration = (
-        ms.duration_override_min
-        if ms.duration_override_min is not None
+        override.duration_override_min
+        if override and override.duration_override_min is not None
         else service.duration_min
     )
     return service, price, duration

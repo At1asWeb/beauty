@@ -79,6 +79,12 @@ class Settings(BaseSettings):
         alias="CORS_ORIGINS",
     )
     dev_mode: bool = Field(default=False, alias="DEV_MODE")
+    reminder_hours_before: float = Field(
+        default=3.0, alias="REMINDER_HOURS_BEFORE"
+    )
+    upload_max_bytes: int = Field(
+        default=8 * 1024 * 1024, alias="UPLOAD_MAX_BYTES"
+    )
 
     @field_validator("database_url")
     @classmethod

@@ -30,6 +30,7 @@ export type Category = {
   name: string;
   description: string | null;
   icon: string | null;
+  photo_url: string | null;
   sort_order: number;
   is_active: boolean;
 };
@@ -109,6 +110,13 @@ export type GalleryItem = {
   created_at: string;
 };
 
+export type UploadOut = {
+  id: number;
+  url: string;
+  content_type: string;
+  size: number;
+};
+
 export type MasterStats = {
   master_id: number;
   from_date: string;
@@ -165,7 +173,50 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+/** Resolve a stored asset path to an absolute URL.
+ *
+ * Backend gives uploads back as relative `/api/uploads/{id}` paths so
+ * the same response works in dev and prod; here we prefix the API base
+ * for absolute URLs (e.g. external CDN images) we just return as-is.
+ */
+function resolveAsset(value: string): string {
+  if (!value) return value;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('/')) return `${API_BASE}${value}`;
+  return value;
+}
+
+async function uploadFile(file: File): Promise<UploadOut> {
+  const init = tg()?.initData ?? '';
+  const headers: Record<string, string> = {
+    Authorization: `tma ${init}`,
+  };
+  const devUserId = localStorage.getItem('dev_user_id');
+  if (!init && devUserId) headers['X-Dev-User-Id'] = devUserId;
+
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(`${API_BASE}/api/uploads`, {
+    method: 'POST',
+    headers,
+    body: fd,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const data = await res.json();
+      if (typeof data.detail === 'string') detail = data.detail;
+    } catch {
+      /* ignore non-JSON body */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  return (await res.json()) as UploadOut;
+}
+
 export const api = {
+  resolveAsset,
+  uploadFile,
   me: () => request<Me>('GET', '/api/me'),
 
   listCategories: () => request<Category[]>('GET', '/api/categories'),
@@ -211,6 +262,17 @@ export const api = {
   ) => request<Master>('POST', `/api/masters/${id}/stop-booking`, body),
   listMasterServices: (id: number) =>
     request<Service[]>('GET', `/api/masters/${id}/services`),
+  listMasterCategories: (id: number) =>
+    request<Category[]>('GET', `/api/masters/${id}/categories`),
+  addMasterCategory: (id: number, categoryId: number) =>
+    request<Category>('POST', `/api/masters/${id}/categories`, {
+      category_id: categoryId,
+    }),
+  removeMasterCategory: (masterId: number, categoryId: number) =>
+    request<void>(
+      'DELETE',
+      `/api/masters/${masterId}/categories/${categoryId}`,
+    ),
   addMasterService: (
     id: number,
     body: {

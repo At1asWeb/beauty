@@ -64,6 +64,42 @@ async def notify_booking_created(session: AsyncSession, booking_id: int) -> None
     await send_message(b.client.tg_id, client_msg)
 
 
+async def notify_booking_reminder(
+    session: AsyncSession, booking_id: int
+) -> None:
+    """Notify both the client and the master that a visit is coming up.
+
+    Triggered by the background scheduler `REMINDER_HOURS_BEFORE` hours
+    before `start_at`. We only send for confirmed bookings.
+    """
+    b = await _load_full(session, booking_id)
+    if b is None:
+        return
+    settings = get_settings()
+    salon = escape_html(settings.salon_name)
+    when = escape_html(_fmt_dt(b.start_at))
+    service = escape_html(b.service.name)
+    master_name = escape_html(b.master.display_name)
+
+    client_msg = (
+        f"⏰ <b>{salon}</b>\n"
+        f"Напоминаем: вас ждут к мастеру <b>{master_name}</b>.\n"
+        f"Услуга: {service}\n"
+        f"Время: <b>{when}</b>"
+    )
+    await send_message(b.client.tg_id, client_msg)
+
+    master_msg = (
+        f"⏰ <b>{salon}</b>\n"
+        f"Скоро запись клиента "
+        f"<b>{escape_html(_full_name(b.client))}</b>"
+        f"{_username_tail(b.client)}.\n"
+        f"Услуга: {service}\n"
+        f"Время: <b>{when}</b>"
+    )
+    await send_message(b.master.user.tg_id, master_msg)
+
+
 async def notify_booking_status_change(
     session: AsyncSession, booking_id: int, actor: User
 ) -> None:

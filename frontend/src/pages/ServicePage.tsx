@@ -75,7 +75,7 @@ export default function ServicePage() {
               <div className="w-12 h-12 rounded-full overflow-hidden bg-tg-secondaryBg shrink-0">
                 {m.photo_url ? (
                   <img
-                    src={m.photo_url}
+                    src={api.resolveAsset(m.photo_url)}
                     alt={m.display_name}
                     className="w-full h-full object-cover"
                   />
