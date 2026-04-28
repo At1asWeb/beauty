@@ -84,6 +84,39 @@ function handle<T>(p: Promise<T>, done: () => void) {
     });
 }
 
+/** Run a delete that may refuse with 409 because of dependent rows.
+ *
+ * On 409 we ask the admin once more with the server-supplied reason and,
+ * if confirmed, retry with the same operation called with `force=true`.
+ */
+function handleDeleteWithForce(
+  attempt: (force: boolean) => Promise<unknown>,
+  done: () => void,
+) {
+  return attempt(false)
+    .then(() => {
+      haptic('success');
+      done();
+    })
+    .catch((err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        if (!confirm(`${err.detail}\n\nУдалить вместе с записями?`)) return;
+        return attempt(true)
+          .then(() => {
+            haptic('success');
+            done();
+          })
+          .catch((err2) => {
+            const msg2 =
+              err2 instanceof ApiError ? err2.detail : String(err2);
+            tg()?.showAlert(`Ошибка: ${msg2}`);
+          });
+      }
+      const msg = err instanceof ApiError ? err.detail : String(err);
+      tg()?.showAlert(`Ошибка: ${msg}`);
+    });
+}
+
 function CategoriesTab() {
   const [cats, setCats] = useState<Category[] | null>(null);
   const [name, setName] = useState('');
@@ -118,7 +151,7 @@ function CategoriesTab() {
 
   const remove = (id: number) => {
     if (!confirm('Удалить категорию?')) return;
-    handle(api.deleteCategory(id), load);
+    handleDeleteWithForce((force) => api.deleteCategory(id, force), load);
   };
 
   return (
@@ -278,7 +311,7 @@ function ServicesTab() {
 
   const remove = (id: number) => {
     if (!confirm('Удалить услугу?')) return;
-    handle(api.deleteService(id), load);
+    handleDeleteWithForce((force) => api.deleteService(id, force), load);
   };
 
   return (

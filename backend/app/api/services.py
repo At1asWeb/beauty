@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user, require_role
 from ..database import get_session
-from ..models import Category, Service, User, UserRole
+from ..models import Booking, Category, Service, User, UserRole
 from ..schemas import ServiceCreate, ServiceOut
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -61,11 +61,40 @@ async def update_service(
 @router.delete("/{service_id}", status_code=204)
 async def delete_service(
     service_id: int,
+    force: bool = Query(False, description="Удалить вместе со связанными записями"),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_role(UserRole.ADMIN)),
 ) -> None:
+    """Delete a service.
+
+    Refuses with `409` when bookings reference the service. With
+    `?force=true` those bookings are deleted first.
+    """
     s = await session.get(Service, service_id)
     if s is None:
         raise HTTPException(404, "service not found")
+
+    bookings_count = (
+        await session.execute(
+            select(func.count())
+            .select_from(Booking)
+            .where(Booking.service_id == service_id)
+        )
+    ).scalar_one()
+
+    if bookings_count and not force:
+        raise HTTPException(
+            409,
+            (
+                f"К услуге привязано {bookings_count} записей. "
+                f"Удалите их или повторите с принудительным удалением."
+            ),
+        )
+
+    if force and bookings_count:
+        await session.execute(
+            delete(Booking).where(Booking.service_id == service_id)
+        )
+
     await session.delete(s)
     await session.commit()
