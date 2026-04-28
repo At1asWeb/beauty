@@ -40,6 +40,7 @@ class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
     icon: str | None = None
+    photo_url: str | None = None
     sort_order: int = 0
     is_active: bool = True
 
@@ -49,6 +50,7 @@ class CategoryOut(_ORMBase):
     name: str
     description: str | None
     icon: str | None
+    photo_url: str | None
     sort_order: int
     is_active: bool
 
@@ -113,6 +115,23 @@ class MasterServiceAssign(BaseModel):
     duration_override_min: int | None = Field(
         default=None, gt=0, le=24 * 60
     )
+
+
+class MasterCategoryAssign(BaseModel):
+    category_id: int
+
+
+class UploadOut(BaseModel):
+    """Returned by the upload endpoint and consumed by image fields.
+
+    `url` is a relative path served by the backend (e.g.
+    `/api/uploads/42`); the frontend prefixes the API base.
+    """
+
+    id: int
+    url: str
+    content_type: str
+    size: int
 
 
 class ScheduleEntry(BaseModel):

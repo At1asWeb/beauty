@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -96,10 +97,14 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(128), unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     icon: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     services: Mapped[list[Service]] = relationship(
+        back_populates="category", cascade="all, delete-orphan"
+    )
+    master_categories: Mapped[list[MasterCategory]] = relationship(
         back_populates="category", cascade="all, delete-orphan"
     )
 
@@ -152,6 +157,9 @@ class Master(Base):
     master_services: Mapped[list[MasterService]] = relationship(
         back_populates="master", cascade="all, delete-orphan"
     )
+    master_categories: Mapped[list[MasterCategory]] = relationship(
+        back_populates="master", cascade="all, delete-orphan"
+    )
     schedule: Mapped[list[Schedule]] = relationship(
         back_populates="master", cascade="all, delete-orphan"
     )
@@ -188,6 +196,35 @@ class MasterService(Base):
 
     master: Mapped[Master] = relationship(back_populates="master_services")
     service: Mapped[Service] = relationship(back_populates="master_services")
+
+
+class MasterCategory(Base):
+    """Join table: which categories a master works in.
+
+    A master is assigned to entire categories. They are implicitly able
+    to perform every active service inside each linked category — the
+    booking flow resolves a price/duration straight from the Service row.
+    """
+
+    __tablename__ = "master_categories"
+    __table_args__ = (
+        UniqueConstraint(
+            "master_id", "category_id", name="uq_master_category"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    master_id: Mapped[int] = mapped_column(
+        ForeignKey("masters.id", ondelete="CASCADE"), index=True
+    )
+    category_id: Mapped[int] = mapped_column(
+        ForeignKey("categories.id", ondelete="CASCADE"), index=True
+    )
+
+    master: Mapped[Master] = relationship(back_populates="master_categories")
+    category: Mapped[Category] = relationship(
+        back_populates="master_categories"
+    )
 
 
 class Schedule(Base):
@@ -262,6 +299,9 @@ class Booking(Base):
     )
     cancelled_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reminded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -388,6 +428,29 @@ class ClientBlock(Base):
         ForeignKey("users.id", ondelete="CASCADE")
     )
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Upload(Base):
+    """Binary blob uploaded by an admin/master, served via /api/uploads/{id}.
+
+    Stored straight in Postgres so deployments don't require any object
+    storage. Photos are kept reasonably small via a server-side size
+    limit; the column is a LargeBinary which maps to bytea on Postgres.
+    """
+
+    __tablename__ = "uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    content_type: Mapped[str] = mapped_column(String(64))
+    filename: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    size: Mapped[int] = mapped_column(Integer)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

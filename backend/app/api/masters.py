@@ -13,9 +13,11 @@ from ..database import get_session
 from ..models import (
     Booking,
     BookingStatus,
+    Category,
     ClientBlock,
     ClientNote,
     Master,
+    MasterCategory,
     MasterService,
     Review,
     Schedule,
@@ -23,9 +25,11 @@ from ..models import (
     UserRole,
 )
 from ..schemas import (
+    CategoryOut,
     ClientBlockOut,
     ClientNoteOut,
     ClientNoteUpdate,
+    MasterCategoryAssign,
     MasterCreate,
     MasterOut,
     MasterProfileUpdate,
@@ -53,16 +57,31 @@ def _ensure_self_or_admin(acting: User, master: Master) -> None:
 @router.get("", response_model=list[MasterOut])
 async def list_masters(
     service_id: int | None = Query(default=None),
+    category_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_user),
 ) -> list[MasterOut]:
+    """List active masters, optionally filtered by category or service.
+
+    A master is bound to whole categories — when a `service_id` is
+    requested we resolve its category and look for masters linked to
+    that category.
+    """
+    from ..models import Service  # local import to avoid cycle
+
     q = select(Master).where(Master.is_active.is_(True))
-    if service_id is not None:
+    target_category_id = category_id
+    if service_id is not None and target_category_id is None:
+        svc = await session.get(Service, service_id)
+        if svc is None:
+            return []
+        target_category_id = svc.category_id
+    if target_category_id is not None:
         q = q.join(
-            MasterService,
+            MasterCategory,
             and_(
-                MasterService.master_id == Master.id,
-                MasterService.service_id == service_id,
+                MasterCategory.master_id == Master.id,
+                MasterCategory.category_id == target_category_id,
             ),
         )
     q = q.order_by(Master.display_name)
@@ -174,7 +193,7 @@ async def set_stop_booking(
     return MasterOut.model_validate(m)
 
 
-# ---- services offered by this master ----
+# ---- services offered by this master (derived from categories) ----
 
 
 @router.get("/{master_id}/services", response_model=list[ServiceOut])
@@ -183,15 +202,15 @@ async def list_master_services(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_user),
 ) -> list[ServiceOut]:
-    from ..models import Service  # local import to avoid cycle noise
+    from ..models import Service
 
     q = (
         select(Service)
         .join(
-            MasterService,
+            MasterCategory,
             and_(
-                MasterService.service_id == Service.id,
-                MasterService.master_id == master_id,
+                MasterCategory.category_id == Service.category_id,
+                MasterCategory.master_id == master_id,
             ),
         )
         .where(Service.is_active.is_(True))
@@ -199,6 +218,84 @@ async def list_master_services(
     )
     rows = (await session.execute(q)).scalars().all()
     return [ServiceOut.model_validate(s) for s in rows]
+
+
+# ---- categories assigned to this master ----
+
+
+@router.get("/{master_id}/categories", response_model=list[CategoryOut])
+async def list_master_categories(
+    master_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(get_current_user),
+) -> list[CategoryOut]:
+    q = (
+        select(Category)
+        .join(
+            MasterCategory,
+            and_(
+                MasterCategory.category_id == Category.id,
+                MasterCategory.master_id == master_id,
+            ),
+        )
+        .order_by(Category.sort_order, Category.name)
+    )
+    rows = (await session.execute(q)).scalars().all()
+    return [CategoryOut.model_validate(c) for c in rows]
+
+
+@router.post("/{master_id}/categories", response_model=CategoryOut)
+async def add_master_category(
+    master_id: int,
+    payload: MasterCategoryAssign,
+    session: AsyncSession = Depends(get_session),
+    actor: User = Depends(require_role(UserRole.MASTER)),
+) -> CategoryOut:
+    m = await session.get(Master, master_id)
+    if m is None:
+        raise HTTPException(404, "master not found")
+    _ensure_self_or_admin(actor, m)
+    cat = await session.get(Category, payload.category_id)
+    if cat is None:
+        raise HTTPException(404, "category not found")
+    existing = (
+        await session.execute(
+            select(MasterCategory).where(
+                MasterCategory.master_id == master_id,
+                MasterCategory.category_id == payload.category_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        session.add(
+            MasterCategory(
+                master_id=master_id, category_id=payload.category_id
+            )
+        )
+        await session.commit()
+    return CategoryOut.model_validate(cat)
+
+
+@router.delete(
+    "/{master_id}/categories/{category_id}", status_code=204
+)
+async def remove_master_category(
+    master_id: int,
+    category_id: int,
+    session: AsyncSession = Depends(get_session),
+    actor: User = Depends(require_role(UserRole.MASTER)),
+) -> None:
+    m = await session.get(Master, master_id)
+    if m is None:
+        raise HTTPException(404, "master not found")
+    _ensure_self_or_admin(actor, m)
+    await session.execute(
+        delete(MasterCategory).where(
+            MasterCategory.master_id == master_id,
+            MasterCategory.category_id == category_id,
+        )
+    )
+    await session.commit()
 
 
 @router.post("/{master_id}/services", response_model=ServiceOut)

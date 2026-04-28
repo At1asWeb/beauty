@@ -11,6 +11,7 @@ from .schemas import (
     ClientNoteUpdate,
     GalleryItemCreate,
     GalleryItemOut,
+    MasterCategoryAssign,
     MasterCreate,
     MasterOut,
     MasterProfileUpdate,
@@ -25,6 +26,7 @@ from .schemas import (
     ServiceOut,
     SlotOut,
     StopBookingUpdate,
+    UploadOut,
     UserOut,
 )
 
@@ -41,6 +43,7 @@ __all__ = [
     "ClientNoteUpdate",
     "GalleryItemCreate",
     "GalleryItemOut",
+    "MasterCategoryAssign",
     "MasterCreate",
     "MasterOut",
     "MasterProfileUpdate",
@@ -55,5 +58,6 @@ __all__ = [
     "ServiceOut",
     "SlotOut",
     "StopBookingUpdate",
+    "UploadOut",
     "UserOut",
 ]
