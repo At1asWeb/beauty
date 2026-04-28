@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user, require_role
 from ..database import get_session
-from ..models import Category, User, UserRole
+from ..models import Booking, Category, Service, User, UserRole
 from ..schemas import CategoryCreate, CategoryOut
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -55,11 +55,56 @@ async def update_category(
 @router.delete("/{category_id}", status_code=204)
 async def delete_category(
     category_id: int,
+    force: bool = Query(False, description="Удалить вместе со связанными записями"),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_role(UserRole.ADMIN)),
 ) -> None:
+    """Delete a category.
+
+    By default refuses with `409` when the category contains services
+    that have bookings (because `bookings.service_id` is `RESTRICT`).
+    Pass `?force=true` to also delete those bookings as part of the
+    operation. Services and `master_categories` are removed via SQLAlchemy
+    `cascade="all, delete-orphan"` regardless.
+    """
     c = await session.get(Category, category_id)
     if c is None:
         raise HTTPException(404, "category not found")
+
+    services_count = (
+        await session.execute(
+            select(func.count())
+            .select_from(Service)
+            .where(Service.category_id == category_id)
+        )
+    ).scalar_one()
+    bookings_count = (
+        await session.execute(
+            select(func.count())
+            .select_from(Booking)
+            .join(Service, Booking.service_id == Service.id)
+            .where(Service.category_id == category_id)
+        )
+    ).scalar_one()
+
+    if bookings_count and not force:
+        raise HTTPException(
+            409,
+            (
+                f"В категории {services_count} услуг(и) с {bookings_count} "
+                f"записями. Удалите записи или повторите с принудительным "
+                f"удалением."
+            ),
+        )
+
+    if force and bookings_count:
+        await session.execute(
+            delete(Booking).where(
+                Booking.service_id.in_(
+                    select(Service.id).where(Service.category_id == category_id)
+                )
+            )
+        )
+
     await session.delete(c)
     await session.commit()

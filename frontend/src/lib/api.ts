@@ -224,8 +224,11 @@ export const api = {
     request<Category>('POST', '/api/categories', body),
   updateCategory: (id: number, body: Partial<Category>) =>
     request<Category>('PATCH', `/api/categories/${id}`, body),
-  deleteCategory: (id: number) =>
-    request<void>('DELETE', `/api/categories/${id}`),
+  deleteCategory: (id: number, force = false) =>
+    request<void>(
+      'DELETE',
+      `/api/categories/${id}${force ? '?force=true' : ''}`,
+    ),
 
   listServices: (categoryId?: number) =>
     request<Service[]>(
@@ -236,8 +239,11 @@ export const api = {
     request<Service>('POST', '/api/services', body),
   updateService: (id: number, body: Partial<Service>) =>
     request<Service>('PATCH', `/api/services/${id}`, body),
-  deleteService: (id: number) =>
-    request<void>('DELETE', `/api/services/${id}`),
+  deleteService: (id: number, force = false) =>
+    request<void>(
+      'DELETE',
+      `/api/services/${id}${force ? '?force=true' : ''}`,
+    ),
 
   listMasters: (serviceId?: number) =>
     request<Master[]>(
