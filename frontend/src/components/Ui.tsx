@@ -101,7 +101,7 @@ export function Input(props: {
   placeholder?: string;
   type?: 'text' | 'number' | 'date' | 'time' | 'tel';
   step?: number;
-  min?: number;
+  min?: number | string;
 }) {
   return (
     <input

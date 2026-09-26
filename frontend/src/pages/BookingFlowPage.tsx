@@ -32,22 +32,55 @@ export default function BookingFlowPage({ me: _me }: { me: Me }) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [detailsError, setDetailsError] = useState(false);
+  const [slotsError, setSlotsError] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [detailsRetry, setDetailsRetry] = useState(0);
+  const [slotsRetry, setSlotsRetry] = useState(0);
+  const today = toLocalDateInputValue(new Date());
 
   useEffect(() => {
     if (!serviceId || !masterId) return;
-    api.listServices().then((ss) => {
-      const s = ss.find((x) => x.id === Number(serviceId));
-      setService(s ?? null);
-    });
-    api.getMaster(Number(masterId)).then(setMaster);
-  }, [serviceId, masterId]);
+    let active = true;
+    setService(null);
+    setMaster(null);
+    setDetailsError(false);
+    Promise.all([api.listServices(), api.getMaster(Number(masterId))])
+      .then(([services, m]) => {
+        if (!active) return;
+        const s = services.find((x) => x.id === Number(serviceId));
+        if (!s) {
+          setDetailsError(true);
+          return;
+        }
+        setService(s);
+        setMaster(m);
+      })
+      .catch(() => {
+        if (active) setDetailsError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [serviceId, masterId, detailsRetry]);
 
   useEffect(() => {
-    if (!serviceId || !masterId || !day) return;
+    let active = true;
     setSelectedSlot(null);
     setSlots(null);
-    api.getSlots(Number(masterId), Number(serviceId), day).then(setSlots);
-  }, [serviceId, masterId, day]);
+    setSlotsError(false);
+    if (!serviceId || !masterId || !day) return;
+    api.getSlots(Number(masterId), Number(serviceId), day)
+      .then((available) => {
+        if (active) setSlots(available);
+      })
+      .catch(() => {
+        if (active) setSlotsError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [serviceId, masterId, day, slotsRetry]);
 
   const grouped = useMemo(() => {
     if (!slots) return null;
@@ -63,11 +96,21 @@ export default function BookingFlowPage({ me: _me }: { me: Me }) {
     return { morning, day: day_, evening };
   }, [slots]);
 
+  if (detailsError)
+    return (
+      <div className="p-4 text-tg-text" role="alert">
+        Не удалось загрузить услугу или мастера.
+        <button className="block mt-2 text-tg-link" onClick={() => setDetailsRetry((n) => n + 1)}>
+          Повторить
+        </button>
+      </div>
+    );
   if (!service || !master) return <Spinner />;
 
   const submit = async () => {
     if (!selectedSlot) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       await api.createBooking({
         master_id: master.id,
@@ -76,13 +119,17 @@ export default function BookingFlowPage({ me: _me }: { me: Me }) {
         client_comment: comment || undefined,
       });
       haptic('success');
-      tg()?.showAlert('Заявка отправлена. Ожидайте подтверждения мастера.', () =>
-        nav('/history'),
-      );
+      if (tg()?.initData) {
+        tg()?.showAlert('Заявка отправлена. Ожидайте подтверждения мастера.', () =>
+          nav('/history'),
+        );
+      } else {
+        nav('/history');
+      }
     } catch (err) {
       haptic('error');
       const msg = err instanceof ApiError ? err.detail : String(err);
-      tg()?.showAlert(`Не удалось создать запись: ${msg}`);
+      setSubmitError(`Не удалось создать запись: ${msg}`);
     } finally {
       setSubmitting(false);
     }
@@ -114,14 +161,23 @@ export default function BookingFlowPage({ me: _me }: { me: Me }) {
           <Input
             type="date"
             value={day}
-            onChange={setDay}
-            min={0}
+            onChange={(value) => setDay(value && value < today ? today : value)}
+            min={today}
           />
         </div>
       </Section>
 
       <Section title="Время">
-        {slots === null ? (
+        {!day ? (
+          <EmptyState text="Выберите дату, чтобы увидеть свободное время" />
+        ) : slotsError ? (
+          <div className="p-4 text-[14px] text-tg-text" role="alert">
+            Не удалось загрузить свободное время.
+            <button className="block mt-2 text-tg-link" onClick={() => setSlotsRetry((n) => n + 1)}>
+              Повторить
+            </button>
+          </div>
+        ) : slots === null ? (
           <Spinner />
         ) : slots.length === 0 ? (
           <EmptyState text="На эту дату нет свободных слотов" />
@@ -170,6 +226,9 @@ export default function BookingFlowPage({ me: _me }: { me: Me }) {
       </Section>
 
       <div className="px-3 mt-4">
+        {submitError && (
+          <p className="text-red-600 text-[14px] mb-2" role="alert">{submitError}</p>
+        )}
         <Button onClick={submit} disabled={!selectedSlot || submitting}>
           {submitting ? 'Отправляем…' : 'Записаться'}
         </Button>
